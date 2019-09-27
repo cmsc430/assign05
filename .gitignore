@@ -1,0 +1,6 @@
+*.o
+*.s
+*.run
+*.out
+compiled/
+assign*test/

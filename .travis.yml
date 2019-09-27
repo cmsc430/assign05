@@ -1,0 +1,23 @@
+language: minimal
+sudo: false
+env:
+  global:
+    - RACKET_DIR=~/racket
+  matrix:
+    - RACKET_VERSION=7.4
+
+before_install:
+  - git clone https://github.com/greghendershott/travis-racket.git
+  - cat travis-racket/install-racket.sh | bash
+  - export PATH="${RACKET_DIR}/bin:${PATH}"
+  - sudo apt-get install -y nasm
+  - git clone https://github.com/cmsc430/assign05-test.git
+
+install: 
+
+before_script: 
+
+script:
+  - make test
+  - raco make assign05-test/main.rkt
+  - raco test --timeout 360 .
