@@ -19,6 +19,10 @@
      (string-append "\tje " (label->string l) "\n")]
     [`(jle ,l)
      (string-append "\tjle " (label->string l) "\n")]
+    [`(jl ,l)
+     (string-append "\tjl " (label->string l) "\n")]
+    [`(jg ,l)
+     (string-append "\tjg " (label->string l) "\n")]
     [`(jge ,l)
      (string-append "\tjge " (label->string l) "\n")]
     [`(jne ,l)
@@ -46,7 +50,7 @@
 ;; Any -> Boolean
 (define (reg? x)
   (and (symbol? x)
-       (memq x '(rax rbx rsp rdi))))
+       (memq x '(rax rbx rcx rsp rdi))))
 
 ;; Reg -> String
 (define (reg->string r)
