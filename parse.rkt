@@ -8,8 +8,7 @@
 ; | String
 ; | `(variable ,Variable)
 ; | `(keyword ,Keyword)
-; | `(prim1 ,Prim1)
-; | `(prim2 ,Prim2)
+; | `(prim ,Prim)
 ; | 'lparen    ;; (
 ; | 'rparen    ;; )
 ; | 'lsquare   ;; [
@@ -24,12 +23,13 @@
 ; | 'else
 ; | 'if
 
+; type Prim = Prim1 | Prim2 | '-
+
 ; type Prim1 =
 ; | 'add1
 ; | 'sub1
 ; | 'zero?
 ; | 'abs
-; | '-
 ; | 'integer->char
 ; | 'char->integer
 ; | 'char?
@@ -54,7 +54,6 @@
 ; | 'char=?
 ; | 'boolean=?
 ; | '+
-; | '-
 
 ;; (Listof Token) -> Expr
 (define (parse lot)
@@ -68,13 +67,20 @@
 ;; Any -> Boolean
 (define (prim1? p)
   (match p
-    [`(prim1 ,_) #t]
+    [`(prim ,n)
+     (and (memq n '(add1 sub1 zero? abs integer->char char->integer char?
+                         boolean? integer? string? box? empty? cons?
+                         box unbox car cdr string-length))
+          #t)]
+
     [_ #f]))
 
 ;; Any -> Boolean
 (define (prim2? p)
   (match p
-    [`(prim2 ,_) #t]
+    [`(prim ,n)
+     (and (memq n '(make-string string-ref = < <= char=? boolean=? +))
+          #t)]
     [_ #f]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -132,13 +138,20 @@
      (let ((p (match-tok! p))
            (e (parse-expr!)))
        (match p
-         [`(prim1 ,p) `(,p ,e)]))]    
+         [`(prim ,p) `(,p ,e)]))]
     [(? prim2? p)
      (let ((p (match-tok! p))
            (e0 (parse-expr!))
            (e1 (parse-expr!)))
        (match p
-         [`(prim2 ,p) `(,p ,e0 ,e1)]))]
+         [`(prim ,p) `(,p ,e0 ,e1)]))]
+    ['(prim -)
+     (let ((p (match-tok! '(prim -)))
+           (e0 (parse-expr!))
+           (e1? (parse-maybe-expr!)))
+       (match e1?
+         [#f `(- ,e0)]
+         [e1 `(- ,e0 ,e1)]))]
     ['(keyword if)
      (let ((if (match-tok! '(keyword if)))
            (q (parse-question!))
@@ -150,6 +163,12 @@
            (cs (parse-clauses!))
            (el (parse-else!)))
        `(cond ,@cs ,el))]))
+
+;; -> (Maybe Expr)
+(define (parse-maybe-expr!)
+  (match (look-ahead)
+    [(or 'rparen 'rquare) #f]
+    [_ (parse-expr!)]))
 
 ;; -> (Listof (List (List 'zero? Expr) Expr))
 (define (parse-clauses!)
@@ -241,7 +260,7 @@
      (match (parse-expr lot)
        [(cons lot e)
         (match p
-          [`(prim1 ,p)
+          [`(prim ,p)
            (cons lot (list p e))])])]
     [(cons (? prim2? p) lot)
      (match (parse-expr lot)
@@ -249,8 +268,16 @@
         (match (parse-expr lot)
           [(cons lot e1)
            (match p
-             [`(prim1 ,p)
-              (cons lot (list p e0 e1))])])])]    
+             [`(prim ,p)
+              (cons lot (list p e0 e1))])])])]
+    [(cons '(prim -) lot)
+     (match (farse-expr lot)
+       [(cons lot e0)
+        (match (parse-maybe-expr lot)
+          [(cons lot #f)
+           (cons lot (list '- e0))]
+          [(cons lot e1)
+           (cons lot (list '- e0 e1))])])]
     [(cons '(keyword if) lot)
      (match (parse-question lot)
        [(cons lot q)
@@ -265,6 +292,14 @@
         (match (parse-else lot)
           [(cons lot el)
            (cons lot `(cond ,@cs ,el))])])]))
+
+;; (Listof Token) -> (Pairof (Listof Token (Maybe Expr)))
+(define (parse-maybe-expr lot)
+  (match lot
+    ['() (cons '() #f)]
+    [(cons (or 'rparen 'rsquare) _)
+     (cons lot #f)]
+    [_ (parse-expr lot)]))
 
 ;; (Listof Token) -> (Pairof (Listof Token) (Listof (List (List 'zero? Expr) Expr)))
 ;; requires look-ahead of 2
@@ -338,7 +373,8 @@
   (check-equal? (p "[add1 7]") '(add1 7))
   (check-equal? (p "[sub1 7]") '(sub1 7))
   (check-equal? (p "(abs 7)") '(abs 7))
-  (check-equal? (p "[abs 7]") '(abs 7))  (check-equal? (p "(- 7)") '(- 7))
+  (check-equal? (p "[abs 7]") '(abs 7))
+  (check-equal? (p "(- 7)") '(- 7))
   (check-equal? (p "[- 7]") '(- 7))
   (check-equal? (p "(cond [else 1])") '(cond [else 1]))
   (check-equal? (p "(cond [(zero? 0) 2] [else 1])")
@@ -350,6 +386,7 @@
   (check-equal? (p "(if (zero? 9) 1 2)")
                 '(if (zero? 9) 1 2))
   (check-equal? (p "(+ 1 2)") '(+ 1 2))
+  (check-equal? (p "(- 1 2)") '(- 1 2))
   (check-equal? (p "(char=? #\\a #\\b)") '(char=? #\a #\b))
   ;; TODO: add more tests
   #;...)

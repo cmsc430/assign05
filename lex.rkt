@@ -24,10 +24,8 @@
            => (compose bytes->string/utf-8 second)]
           [(regexp-try-match (keywords kws) p)
            => (compose mk-keyword string->symbol bytes->string/utf-8 first)]
-          [(regexp-try-match (keywords prim1s) p)
-           => (compose mk-prim1 string->symbol bytes->string/utf-8 first)]
-          [(regexp-try-match (keywords prim2s) p)
-           => (compose mk-prim2 string->symbol bytes->string/utf-8 first)]
+          [(regexp-try-match (keywords prims) p)
+           => (compose mk-prim string->symbol bytes->string/utf-8 first)]
           [(regexp-try-match "^[-]?[0-9]+" p)
            => (compose string->number bytes->string/utf-8 first)]
           [(regexp-try-match symbol p)
@@ -47,20 +45,18 @@
         (loop))])))
 
 (define (mk-keyword k) `(keyword ,k))
-(define (mk-prim1 k) `(prim1 ,k))
-(define (mk-prim2 k) `(prim2 ,k))
+(define (mk-prim k) `(prim ,k))
 (define (mk-var k) `(variable ,k))
 
 (define (try-quote s p)
   (regexp-try-match (string-append "^" (regexp-quote s)) p))
 
-(define prim1s
+(define prims
   '("add1" "sub1" "zero?" "abs" "-" "integer->char" "char->integer" "char?" "integer?" "boolean?"
            "string?" "box?" "empty?" "cons?" "box" "unbox" "car" "cdr"
-           "string-length"))
-(define prim2s
-  '("make-string" "string-ref" "=" "<" "<="
-                  "char=?" "boolean=?" "+"))
+           "string-length"
+           "make-string" "string-ref" "=" "<" "<="
+           "char=?" "boolean=?" "+"))
 
 (define kws '("cond" "if" "let" "else"))
 
@@ -190,17 +186,17 @@
   (check-equal? (lex-string "#lang racket [") '(lsquare eof))
   (check-equal? (lex-string "#lang racket )") '(rparen eof))
   (check-equal? (lex-string "#lang racket ]") '(rsquare eof))
-  (check-equal? (lex-string "#lang racket add1") '((prim1 add1) eof))
-  (check-equal? (lex-string "#lang racket sub1") '((prim1 sub1) eof))
+  (check-equal? (lex-string "#lang racket add1") '((prim add1) eof))
+  (check-equal? (lex-string "#lang racket sub1") '((prim sub1) eof))
   (check-equal? (lex-string "#lang racket else") '((keyword else) eof))
   (check-equal? (lex-string "#lang racket cond") '((keyword cond) eof))
-  (check-equal? (lex-string "#lang racket zero?") '((prim1 zero?) eof))
-  (check-equal? (lex-string "#lang racket boolean?") '((prim1 boolean?) eof))
-  (check-equal? (lex-string "#lang racket string-ref") '((prim2 string-ref) eof))
+  (check-equal? (lex-string "#lang racket zero?") '((prim zero?) eof))
+  (check-equal? (lex-string "#lang racket boolean?") '((prim boolean?) eof))
+  (check-equal? (lex-string "#lang racket string-ref") '((prim string-ref) eof))
   (check-equal? (lex-string "#lang racket (string-ref \"fred\" 0)")
-                '(lparen (prim2 string-ref) "fred" 0 rparen eof))
-  (check-equal? (lex-string "#lang racket char?") '((prim1 char?) eof))
-  (check-equal? (lex-string "#lang racket integer?") '((prim1 integer?) eof))
+                '(lparen (prim string-ref) "fred" 0 rparen eof))
+  (check-equal? (lex-string "#lang racket char?") '((prim char?) eof))
+  (check-equal? (lex-string "#lang racket integer?") '((prim integer?) eof))
   (check-equal? (lex-string "#lang racket #t") '(#t eof))
   (check-equal? (lex-string "#lang racket #f") '(#f eof))
   (check-equal? (lex-string "#lang racket #\\nul") '(#\nul eof))
@@ -216,5 +212,5 @@
   (check-equal? (lex-string "#lang racket x y") '((variable x) (variable y) eof))
   (check-equal? (lex-string "#lang racket x.y") '((variable x.y) eof))
   (check-equal? (lex-string "#lang racket (cond [(zero? 0) 1] [else 2])")
-                '(lparen (keyword cond) lsquare lparen (prim1 zero?) 0 rparen 1 rsquare
+                '(lparen (keyword cond) lsquare lparen (prim zero?) 0 rparen 1 rsquare
                          lsquare (keyword else) 2 rsquare rparen eof)))
