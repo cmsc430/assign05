@@ -20,6 +20,7 @@
       [else
        (cons
         (cond
+          [(try-quote "'()" p) '()]
           [(regexp-try-match string p)
            => (compose bytes->string/utf-8 second)]
           [(regexp-try-match (keywords kws) p)
@@ -53,7 +54,7 @@
 
 (define prims
   '("add1" "sub1" "zero?" "abs" "-" "integer->char" "char->integer" "char?" "integer?" "boolean?"
-           "string?" "box?" "empty?" "cons?" "box" "unbox" "car" "cdr"
+           "string?" "box?" "empty?" "cons" "cons?" "box" "unbox" "car" "cdr"
            "string-length"
            "make-string" "string-ref" "=" "<" "<="
            "char=?" "boolean=?" "+"))
