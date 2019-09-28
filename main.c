@@ -124,6 +124,5 @@ void print_string(int64_t v) {
 
   int i;
   for (i = 0; i < len; i++)
-    // FIXME: doesn't do escapes correctly
     print_string_char(str[i+1]);
 }
