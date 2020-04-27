@@ -20,6 +20,7 @@
 
 ; type Keyword =
 ; | 'let
+; | 'let*
 ; | 'cond
 ; | 'else
 ; | 'if
@@ -150,7 +151,13 @@
        [(cons lot bs)
         (match (parse-expr lot)
           [(cons lot e)
-           (cons lot `(let ,@bs ,e))])])]))
+           (cons lot `(let ,@bs ,e))])])]
+    [(cons '(keyword let*) lot)
+     (match (parse-bindings lot)
+       [(cons lot bs)
+        (match (parse-expr lot)
+          [(cons lot e)
+           (cons lot `(let* ,@bs ,e))])])]))
 
 (define (parse-maybe-expr lot)
   (match lot
