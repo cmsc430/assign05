@@ -1,15 +1,7 @@
 #lang racket
 (provide (all-defined-out))
 
-;; type Value =
-;; | Integer
-;; | Boolean
-;; | Character
-;; | String
-;; | (Box Value)
-;; | (Cons Value Value)
-
-;; type Answer = Value | 'err
+(require "ast.rkt")
 
 ;; type REnv = (Listof (List Variable Value))
 
@@ -20,27 +12,27 @@
 ;; Expr REnv -> Answer
 (define (interp-env e r)
   (match e
-    [(? value? v) v]
-    [''() '()]
-    [(list (? prim? p) es ...)
+    [(? value? v) (get-val v)]
+    [(nil-e) '()]
+    [(prim-e (? prim? p) es)
      (let ((as (interp-env* es r)))
        (interp-prim p as))]    
-    [`(if ,e0 ,e1 ,e2)
+    [(if-e e0 e1 e2)
      (match (interp-env e0 r)
        ['err 'err]
        [v
         (if v
             (interp-env e1 r)
             (interp-env e2 r))])]
-    [(? symbol? x)
+    [(var-e x)
      (lookup r x)]
-    [`(let ,(list `(,xs ,es) ...) ,e)
-     (match (interp-env* es r)
+    [(let-e bs body)
+     (match (interp-env* (get-defs bs) r)
        ['err 'err]
        [vs
-        (interp-env e (append (zip xs vs) r))])]
-    [(list 'cond cs ... `(else ,en))
-     (interp-cond-env cs en r)]))
+        (interp-env body (append (zip (get-vars bs) vs) r))])]
+    [(cond-e cs el)
+     (interp-cond-env cs el r)]))
 
 ;; (Listof Expr) REnv -> (Listof Value) | 'err
 (define (interp-env* es r)
@@ -55,7 +47,7 @@
 (define (interp-cond-env cs en r)
   (match cs
     ['() (interp-env en r)]
-    [(cons `(,eq ,ea) cs)
+    [(cons (clause eq ea) cs)
      (match (interp-env eq r)
        ['err 'err]
        [v
@@ -64,23 +56,15 @@
             (interp-cond-env cs en r))])]))
 
 ;; Any -> Boolean
-(define (prim? x)
-  (and (symbol? x)
-       (memq x '(add1 sub1 zero? abs - char? boolean? integer? integer->char char->integer
-                      string? box? empty? cons? cons box unbox car cdr string-length
-                      make-string string-ref = < <= char=? boolean=? +))))
-
-;; Any -> Boolean
 (define (value? x)
-  (or (integer? x)
-      (boolean? x)
-      (char? x)
-      (string? x)))
+  (or (int-e? x)
+      (bool-e? x)
+      (char-e? x)
+      (string-e? x)))
 
 ;; Prim (Listof Answer) -> Answer
 (define (interp-prim p as)
   (match (cons p as)
-    [(list p (? value?) ... 'err _ ...) 'err]
     [(list '- (? integer? i0)) (- i0)]
     [(list 'abs (? integer? i0)) (abs i0)]
     [(list 'add1 (? integer? i0)) (+ i0 1)]
@@ -102,7 +86,7 @@
     [(list 'box v0) (box v0)]
     [(list 'unbox (? box? v0)) (unbox v0)]
     [(list 'string-length (? string? v0)) (string-length v0)]
-    [(list 'make-string (? natural? v0) (? char? v1)) (make-string v0 v1)]
+    [(list 'make-string (? char? v0) (? natural? v1)) (make-string v0 v1)]
     [(list 'string-ref (? string? v0) (? natural? v1))
      (if (< v1 (string-length v0))
          (string-ref v0 v1)

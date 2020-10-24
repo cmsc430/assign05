@@ -1,6 +1,18 @@
 #lang racket
 (provide (all-defined-out))
 
+(require "ast.rkt")
+
+;; This assignment should be completed individually.
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; I pledge on my honor that I have not given or received any
+;; unauthorized assistance on this assignment.
+;;
+;; Name: TODO
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 ;; An immediate is anything ending in #b0000
 ;; All other tags in mask #b111 are pointers
 
@@ -40,8 +52,20 @@
 ;; Expr CEnv -> Asm
 (define (compile-e e c)
   (match e
-    [(? imm? i)            (compile-imm i)]
-    [(? symbol? x)         (compile-var x c)]
+    [(? imm? i)            (compile-imm (get-val i))]
+    [(var-e v)             (compile-var v c)]
+    [(prim-e p es)         (compile-prim p es c)]
+    [(if-e e0 e1 e2)       (compile-if e0 e1 e2 c)]))
+
+;; Any -> Boolean
+(define (imm? x)
+  (or (int-e? x)
+      (bool-e? x)
+      (char-e? x)
+      (nil-e? x)))
+
+(define (compile-prim p es c)
+  (match (cons p es)
     [`(box ,e0)            (compile-box e0 c)]
     [`(unbox ,e0)          (compile-unbox e0 c)]
     [`(cons ,e0 ,e1)       (compile-cons e0 e1 c)]
@@ -50,16 +74,16 @@
     [`(add1 ,e0)           (compile-add1 e0 c)]
     [`(sub1 ,e0)           (compile-sub1 e0 c)]
     [`(zero? ,e0)          (compile-zero? e0 c)]
-    [`(if ,e0 ,e1 ,e2)     (compile-if e0 e1 e2 c)]
-    [`(+ ,e0 ,e1)          (compile-+ e0 e1 c)]))
+    [`(+ ,e0 ,e1)          (compile-+ e0 e1 c)]
 
-;; Any -> Boolean
-(define (imm? x)
-  (or (integer? x)
-      (boolean? x)
-      (char? x)
-      (equal? ''() x)))
+    ;; Many primitive are still left:
+    ;; -, char=?, boolean=?, =, <, <=, string-length, string-ref,
+    ;; make-string, char-integer, integer->char, abs
+    ;; TODO
+    #;...))
 
+
+;; TODO: You'll need to add something to this
 ;; Any -> Boolean
 (define (type-pred? x)
   (memq x '(integer?
@@ -79,9 +103,16 @@
     [(? integer? i) (arithmetic-shift i imm-shift)]
     [(? char? c)    (+ (arithmetic-shift (char->integer c) imm-shift) imm-type-char)]
     [(? boolean? b) (if b imm-val-true imm-val-false)]
-    [''()           imm-type-empty]))
+    ['()            imm-type-empty]))
 
 
+
+
+
+
+
+
+    
 
 
 
@@ -198,6 +229,7 @@
 
 
 
+
 ;; Variable CEnv -> Natural
 (define (lookup x cenv)
   (match cenv
@@ -215,7 +247,8 @@
 
 (define assert-integer (assert-type 'integer?))
 (define assert-box     (assert-type 'box?))
-(define assert-pair    (assert-type 'pair?))
+(define assert-pair    (assert-type 'cons?))
 (define assert-char    (assert-type 'char?))
+
 
 

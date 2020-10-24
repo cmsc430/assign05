@@ -1,5 +1,7 @@
 #lang racket
-(provide parse)
+(provide (all-defined-out))
+
+(require "ast.rkt")
 
 ; type Token =
 ; | Integer
@@ -20,7 +22,6 @@
 
 ; type Keyword =
 ; | 'let
-; | 'let*
 ; | 'cond
 ; | 'else
 ; | 'if
@@ -87,17 +88,17 @@
 (define (parse-expr lot)
   (match lot
     [(cons '() lot)
-     (cons lot ''())]
+     (cons lot (nil-e))]
     [(cons (? integer? i) lot)
-     (cons lot i)]
+     (cons lot (int-e i))]
     [(cons (? char? c) lot)
-     (cons lot c)]
+     (cons lot (char-e c))]
     [(cons (? boolean? b) lot)
-     (cons lot b)]
+     (cons lot (bool-e b))]
     [(cons (? string? s) lot)
-     (cons lot s)]
+     (cons lot (string-e s))]
     [(cons `(variable ,x) lot)
-     (cons lot x)]
+     (cons lot (var-e x))]
     [(cons 'lparen lot)
      (match (parse-compound lot)
        [(cons (cons 'rparen lot) e)
@@ -115,7 +116,7 @@
        [(cons lot e)
         (match p
           [`(prim ,p)
-           (cons lot (list p e))])])]
+           (cons lot (prim-e p (list e)))])])]
     [(cons (? prim2? p) lot)
      (match (parse-expr lot)
        [(cons lot e0)
@@ -123,15 +124,15 @@
           [(cons lot e1)
            (match p
              [`(prim ,p)
-              (cons lot (list p e0 e1))])])])]
+              (cons lot (prim-e p (list e0 e1)))])])])]
     [(cons '(prim -) lot)
      (match (parse-expr lot)
        [(cons lot e0)
         (match (parse-maybe-expr lot)
           [(cons lot #f)
-           (cons lot (list '- e0))]
+           (cons lot (prim-e '- (list e0)))]
           [(cons lot e1)
-           (cons lot (list '- e0 e1))])])]
+           (cons lot (prim-e '- (list e0 e1)))])])]
     [(cons '(keyword if) lot)
      (match (parse-expr lot)
        [(cons lot q)
@@ -139,25 +140,19 @@
           [(cons lot e1)
            (match (parse-expr lot)
              [(cons lot e2)
-              (cons lot (list 'if q e1 e2))])])])]
+              (cons lot (if-e q e1 e2))])])])]
     [(cons '(keyword cond) lot)
      (match (parse-clauses lot)
        [(cons lot cs)
         (match (parse-else lot)
           [(cons lot el)
-           (cons lot `(cond ,@cs ,el))])])]
+           (cons lot (cond-e cs el))])])]
     [(cons '(keyword let) lot)
      (match (parse-bindings lot)
        [(cons lot bs)
         (match (parse-expr lot)
           [(cons lot e)
-           (cons lot `(let ,@bs ,e))])])]
-    [(cons '(keyword let*) lot)
-     (match (parse-bindings lot)
-       [(cons lot bs)
-        (match (parse-expr lot)
-          [(cons lot e)
-           (cons lot `(let* ,@bs ,e))])])]))
+           (cons lot (let-e bs e))])])]))
 
 (define (parse-maybe-expr lot)
   (match lot
@@ -170,10 +165,10 @@
   (match lot
     [(cons 'lparen lot)
      (match (parse-binding-list lot)
-       [(cons (cons 'rparen lot) bs) (cons lot (list bs))])]
+       [(cons (cons 'rparen lot) bs) (cons lot bs)])]
     [(cons 'lsquare lot)
      (match (parse-binding-list lot)
-       [(cons (cons 'rsquare lot) bs) (cons lot (list bs))])]))
+       [(cons (cons 'rsquare lot) bs) (cons lot bs)])]))
 
 (define (parse-binding-list lot)
   (match lot
@@ -192,13 +187,13 @@
        [(cons (cons 'rparen lot) e)
         (match x
           [`(variable ,x)
-           (cons lot (list x e))])])]
+           (cons lot (binding x e))])])]
     [(cons 'lsquare (cons (? variable? x) lot))
      (match (parse-expr lot)
        [(cons (cons 'rsquare lot) e)
         (match x
           [`(variable ,x)
-           (cons lot (list x e))])])]))
+           (cons lot (binding x e))])])]))
 
 ;; (Listof Token) -> (Pairof (Listof Token) (Listof (List Expr Expr)))
 ;; requires look-ahead of 2
@@ -223,13 +218,13 @@
        [(cons lot q)
         (match (parse-expr lot)
           [(cons (cons 'rparen lot) e)
-           (cons lot (list q e))])])]
+           (cons lot (clause q e))])])]
     [(cons 'lsquare lot)
      (match (parse-expr lot)
        [(cons lot q)
         (match (parse-expr lot)
           [(cons (cons 'rsquare lot) e)
-           (cons lot (list q e))])])]))
+           (cons lot (clause q e))])])]))
 
 ;; (Listof Token) -> (Pairof (Listof Token) (List 'else Expr)
 (define (parse-else lot)
@@ -237,11 +232,11 @@
     [(cons 'lparen (cons '(keyword else) lot))
      (match (parse-expr lot)
        [(cons (cons 'rparen lot) e)
-        (cons lot (list 'else e))])]
+        (cons lot e)])]
     [(cons 'lsquare (cons '(keyword else) lot))
      (match (parse-expr lot)
        [(cons (cons 'rsquare lot) e)
-        (cons lot (list 'else e))])]))
+        (cons lot e)])]))
 
 (define (variable? x)
   (match x
@@ -254,30 +249,31 @@
 (module+ test
   (require rackunit)
   (require "lex.rkt")
+  (require "syntax.rkt")
   ;; String -> Expr
   (define (p s)
     (parse (lex-string (string-append "#lang racket " s))))
 
-  (check-equal? (p "7") 7)
-  (check-equal? (p "(add1 7)") '(add1 7))
-  (check-equal? (p "(sub1 7)") '(sub1 7))
-  (check-equal? (p "[add1 7]") '(add1 7))
-  (check-equal? (p "[sub1 7]") '(sub1 7))
-  (check-equal? (p "(abs 7)") '(abs 7))
-  (check-equal? (p "[abs 7]") '(abs 7))
-  (check-equal? (p "(- 7)") '(- 7))
-  (check-equal? (p "[- 7]") '(- 7))
-  (check-equal? (p "(cond [else 1])") '(cond [else 1]))
+  (check-equal? (p "7")               (sexpr->ast 7))
+  (check-equal? (p "(add1 7)")        (sexpr->ast '(add1 7)))
+  (check-equal? (p "(sub1 7)")        (sexpr->ast '(sub1 7)))
+  (check-equal? (p "[add1 7]")        (sexpr->ast '(add1 7)))
+  (check-equal? (p "[sub1 7]")        (sexpr->ast '(sub1 7)))
+  (check-equal? (p "(abs 7)")         (sexpr->ast '(abs 7)))
+  (check-equal? (p "[abs 7]")         (sexpr->ast '(abs 7)))
+  (check-equal? (p "(- 7)")           (sexpr->ast '(- 7)))
+  (check-equal? (p "[- 7]")           (sexpr->ast '(- 7)))
+  (check-equal? (p "(cond [else 1])") (sexpr->ast '(cond [else 1])))
   (check-equal? (p "(cond [(zero? 0) 2] [else 1])")
-                '(cond [(zero? 0) 2] [else 1]))
+                (sexpr->ast '(cond [(zero? 0) 2] [else 1])))
   (check-equal? (p "(cond [(zero? 0) 2] [(zero? 1) 3] [else 1])")
-                '(cond [(zero? 0) 2] [(zero? 1) 3] [else 1]))
+                (sexpr->ast '(cond [(zero? 0) 2] [(zero? 1) 3] [else 1])))
   (check-equal? (p "(cond [(zero? 0) 2] [(zero? 1) 3] (else 1))")
-                '(cond [(zero? 0) 2] [(zero? 1) 3] [else 1]))
+                (sexpr->ast '(cond [(zero? 0) 2] [(zero? 1) 3] [else 1])))
   (check-equal? (p "(if (zero? 9) 1 2)")
-                '(if (zero? 9) 1 2))
-  (check-equal? (p "(+ 1 2)") '(+ 1 2))
-  (check-equal? (p "(- 1 2)") '(- 1 2))
-  (check-equal? (p "(char=? #\\a #\\b)") '(char=? #\a #\b))
+                (sexpr->ast '(if (zero? 9) 1 2)))
+  (check-equal? (p "(+ 1 2)") (sexpr->ast '(+ 1 2)))
+  (check-equal? (p "(- 1 2)") (sexpr->ast '(- 1 2)))
+  (check-equal? (p "(char=? #\\a #\\b)") (sexpr->ast '(char=? #\a #\b)))
   ;; TODO: add more tests
   #;...)
