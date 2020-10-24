@@ -154,3 +154,5 @@
 (check-equal? (run '(string-ref "" #f)) 'err)
 (check-equal? (run '(string-ref "abc" -1)) 'err)
 (check-equal? (run '(string-ref "abc" 3)) 'err)
+
+;; TODO: Add tests for the new Hustle+ primitives.
