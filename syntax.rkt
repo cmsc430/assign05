@@ -34,51 +34,9 @@
 ;; Is e a closed expression?
 (define (closed? e)
   ;; TODO
-  #f
-  ;; SOLN
-  (closed?/env e '()))
+  #f)
 
-;; SOLN
-(define (closed?/env e bvs)
-  (match e
-    [(int-e i)     #t]
-    [(bool-e b)    #t]
-    [(char-e c)    #t]
-    [(string-e s)  #t]
-    [(var-e v)     (and (memq v bvs) #t)]
-    [(nil-e)       #t]
-    [(if-e p t f)  (and
-                     (closed?/env p bvs)
-                     (closed?/env t bvs)
-                     (closed?/env f bvs))]
-    [(prim-e (? prim1? p) (list e))
-      (closed?/env e bvs)]
-    [(prim-e (? prim2? p) (list e0 e1))
-      (and (closed?/env e0 bvs)
-           (closed?/env e1 bvs))]
-    [(cond-e cs f) (and
-                     (closed-clauses?/env cs bvs)
-                     (closed?/env f bvs))]
-    [(let-e bs e)  (let ((vs (get-vars bs)))
-                        (and
-                          (closed-bindings?/env bs bvs)
-                          (closed?/env e (append vs bvs))))]))
 
-;; SOLN
-(define (closed-clauses?/env cs bvs)
-  (match cs
-    ['() #t]
-    [(cons (clause e b) cs) (and
-                              (closed?/env e bvs)
-                              (closed?/env b bvs)
-                              (closed-clauses?/env cs bvs))]))
-;; SOLN
-(define (closed-bindings?/env bs bvs)
-  (match bs
-    ['() #t]
-    [(cons (binding v def) bs) (and
-                                 (closed?/env def bvs)
-                                 (closed-bindings?/env bs bvs))]))
 
 
 ;; Any -> Boolean
@@ -133,25 +91,3 @@
     [_                    (error "bound name must be a symbol")]))
 
 
-;; SOLN
-(module+ test
-  (require rackunit)
-
-  (check-true (expr?  (sexpr->ast 1)))
-  (check-true (expr?  (sexpr->ast #\c)))
-  (check-true (expr?  (sexpr->ast #t)))
-  (check-true (expr?  (sexpr->ast '(add1 1))))
-  (check-true (expr?  (sexpr->ast '(add1 #t))))
-  (check-true (expr?  (sexpr->ast '(let () 1))))
-  (check-true (expr?  (sexpr->ast '(let ((x 1)) 1))))
-  (check-true (expr?  (sexpr->ast '(let ((x 1)) x))))
-
-  (check-false (expr? (sexpr->ast '(let ((x 1) (x 2)) x))))
-
-  (check-exn exn:fail? (lambda () (expr? (sexpr->ast '(let ((x)) 0)))))
-  (check-exn exn:fail? (lambda () (expr? (sexpr->ast '(let 0 0)))))
-  (check-exn exn:fail? (lambda () (expr? (sexpr->ast '(let (x) 0)))))
-  (check-exn exn:fail? (lambda () (expr? (sexpr->ast '(let (()) 0)))))
-  (check-exn exn:fail? (lambda () (expr? (sexpr->ast '(let x 0)))))
-  (check-exn exn:fail? (lambda () (expr? (sexpr->ast '(let x)))))
-  (check-exn exn:fail? (lambda () (expr? (sexpr->ast '(let ((x 0))))))))
