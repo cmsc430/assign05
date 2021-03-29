@@ -1,2 +1,4 @@
 #lang racket
-42
+(string-ref (make-string 7 #\x) 4)
+
+
