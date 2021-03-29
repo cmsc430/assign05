@@ -1,5 +1,5 @@
 #lang racket
-(require "test-runner.rkt"
+(require "test-runner-string.rkt"
          "../parse.rkt"
          "../interp.rkt"
          "../interp-io.rkt")
