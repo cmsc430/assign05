@@ -56,5 +56,8 @@
 (define (cons-bits? v)
   (zero? (bitwise-xor (bitwise-and v imm-mask) type-cons)))
 
+(define (string-bits? v)
+  (zero? (bitwise-xor (bitwise-and v imm-mask) type-string)))
+
 (define (box-bits? v)
   (zero? (bitwise-xor (bitwise-and v imm-mask) type-box)))
