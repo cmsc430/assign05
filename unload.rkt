@@ -13,7 +13,8 @@
   (match v
     [(? integer?)    v]
     [(? boolean?)    v]
-    [(? char?)       v]    
+    [(? char?)       v]
+    [(? string?)     v]        
     [(? eof-object?) v]
     [(? void?)       v]    
     ['()             '()]        
