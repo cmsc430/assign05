@@ -31,6 +31,7 @@ void print_char(int64_t);
 void print_cons(int64_t);
 
 void print_string(int64_t v);
+void print_string_char(int64_t v);
 
 void print_result(int64_t result) {
   if (cons_type_tag == (ptr_type_mask & result)) {
