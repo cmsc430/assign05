@@ -154,11 +154,11 @@
          ['eq?
           (let ((l (gensym)))
             (seq (Cmp rax (Offset rsp 0))
-                 (Sub rsp 8)
                  (Mov rax val-true)
                  (Je l)
                  (Mov rax val-false)
-                 (Label l)))]
+                 (Label l)
+                 (Add rsp 8)))]
          ['cons
           (seq (Mov (Offset rbx 0) rax)
                (Pop rax)
